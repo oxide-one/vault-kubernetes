@@ -15,12 +15,15 @@ etcd_dns_endpoints: []
 kubernetes_engine_path: "x509/kubernetes"
 etcd_engine_path: "x509/etcd"
 front_proxy_engine_path: "x509/front-proxy"
+serviceaccount_engine_path: "x509/serviceaccount"
 
-policies:
+
+# Extra policies to define, for fun and science.
+extra_policies:
   - name: kubernetes_master
     path: "x509/kubernetes/kubernetes_master"
-
-
+    certificates:
+    - 
 
 # Unless you're really curious, you can leave the options below as default. 
 # They're fairly sane...
@@ -105,26 +108,3 @@ vault_front_proxy_cert_roles:
     <<: *vault_main_cert_role_options
     #common_name: "front-proxy-client"
     client_flag: true
-
-
-
-#### Vault Policies ####
-# vault_etcd_policies:
-#   kube_etcd: "{{ etcd_engine_path }}"
-#   kube_etcd_peer: "{{ etcd_engine_path }}"
-#   kube_etcd_healthcheck_client: "{{ etcd_engine_path }}"
-#   kube_apiserver_etcd_client: "{{ etcd_engine_path }}"
-
-# vault_kubernetes_policies:
-#   kube_apiserver: "{{ kubernetes_engine_path }}"
-#   kube_apiserver_kubelet_client: "{{ kubernetes_engine_path }}"
-
-# vault_front_proxy_policies:
-#   front_proxy_client: "{{ front_proxy_engine_path }}"
-
-#       vault_policy_path: "sou/etcd/member"
-#       vault_policy_policies:
-#         - path: "sou/etcd/issue/member"
-#           capabilities:
-#             - "create"
-#             - "update"

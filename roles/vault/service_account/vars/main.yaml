@@ -1,0 +1,3 @@
+vault_engine_mount_options:
+  type: "kv-v2"
+  description: "{{ vault_engine_description }}"
