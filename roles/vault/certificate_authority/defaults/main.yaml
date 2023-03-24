@@ -1,0 +1,4 @@
+vault_ca_path: pki
+vault_ca_description: ""
+
+vault_root_certificate_options:

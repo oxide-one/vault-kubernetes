@@ -1,0 +1,5 @@
+{% for policy in vault_policy_policies %}
+path "{{ policy.path }}" {
+    capabilities = {{ policy.capabilities | to_json }}
+}
+{% endfor %}

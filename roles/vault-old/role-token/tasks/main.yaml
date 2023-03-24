@@ -1,0 +1,13 @@
+- name: "Create/Update token role for {{ vault_token_role_name }}"
+  uri:
+    url: "{{ vault_url }}/v1/auth/token/roles/{{ vault_token_role_name }}"
+    headers:
+      X-Vault-Request: true
+      X-Vault-Token: "{{ vault_token }}"
+    method: POST
+    body: "{{ vault_token_data | to_json }}"
+    body_format: json
+    status_code:
+      - 204
+  when:
+  - state == 'present'

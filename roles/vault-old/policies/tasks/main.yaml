@@ -1,0 +1,19 @@
+- name: "Template out a policy file"
+  ansible.builtin.set_fact:
+    templated_policy: 
+      policy: "{{ lookup('template', './policy.hcl.j2') }}"
+  connection: local
+
+- name: "Create/Update policy at {{ vault_policy_path }}"
+  uri:
+    url: "{{ vault_url }}/v1/sys/policies/acl/{{ vault_policy_path }}"
+    headers:
+      X-Vault-Request: true
+      X-Vault-Token: "{{ vault_token }}"
+    method: POST
+    body: "{{ templated_policy | to_json }}"
+    body_format: json
+    status_code:
+      - 204
+  when:
+  - state == 'present'

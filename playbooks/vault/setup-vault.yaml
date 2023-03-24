@@ -1,0 +1,3 @@
+- import_playbook: vault/ca.yaml
+- import_playbook: vault/etcd.yaml
+- import_playbook: vault/kubernetes.yaml

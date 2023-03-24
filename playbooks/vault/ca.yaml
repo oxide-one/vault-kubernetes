@@ -1,0 +1,40 @@
+- name: "Setup hashicorp vault"
+  hosts: syndicate
+  connection: local
+  vars:
+    vault_ca_crl_url: "https://vault.oxide.one"
+    vault_ca_issuing_url: "https://vault.oxide.one"
+    component: "engine"
+    state: "present"
+
+    vault_root_cacert_format: pem_bundle
+    vault_root_cacert_key_type: rsa
+    vault_root_cacert_organization: oxide.one
+    vault_root_cacert_permitted_dns_domains: "sou.oxide.one"
+    vault_root_cacert_private_key_format: der
+    vault_root_cacert_ttl: 8760h0m0s
+    vault_root_cacert_type: internal
+  tasks:
+  - name: "Setup Certificate Authorities for Kubernetes"
+    ansible.builtin.include_role:
+      name: "vault/certificate_authority"
+    vars:
+      vault_ca_description: "etcd"
+      vault_root_cacert_common_name: k8s.sou.oxide.one
+      vault_ca_path: "sou/kubernetes"
+
+  - name: "Setup Certificate Authorities for ETCD"
+    ansible.builtin.include_role:
+      name: "vault/certificate_authority"
+    vars:
+      vault_ca_description: "Basic stuff"
+      vault_root_cacert_common_name: etcd.gecko.oxide.one
+      vault_ca_path: "sou/etcd"
+
+  - name: "Setup Certificate Authorities for ETCD"
+    ansible.builtin.include_role:
+      name: "vault/certificate_authority"
+    vars:
+      vault_ca_description: "Kubernetes Front Proxy"
+      vault_root_cacert_common_name: fp.gecko.oxide.one
+      vault_ca_path: "sou/front-proxy"

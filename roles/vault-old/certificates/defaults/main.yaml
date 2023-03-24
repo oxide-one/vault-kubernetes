@@ -1,0 +1,2 @@
+vault_ca_path: pki
+vault_cert_name: "{{ inventory_hostname }}"

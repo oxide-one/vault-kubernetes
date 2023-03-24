@@ -1,0 +1,34 @@
+- name: "Setup hashicorp vault"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+  - vars.yaml
+  tasks:
+  - name: "Setup certificate roles for Kubernetes"
+    ansible.builtin.include_role:
+      name: "vault/certificate_roles"
+    vars:
+      vault_role_name: "{{ item.key | replace('_','-') }}"
+      vault_ca_path: "{{ kubernetes_engine_path }}"
+      vault_cert_role_options: "{{ item.value }}"
+    loop: "{{ vault_kubernetes_cert_roles | dict2items }}"
+
+  - name: "Setup certificate roles for ETCD"
+    ansible.builtin.include_role:
+      name: "vault/certificate_roles"
+    vars:
+      vault_role_name: "{{ item.key | replace('_','-') }}"
+      vault_ca_path: "{{ etcd_engine_path }}"
+      vault_cert_role_options: "{{ item.value }}"
+    loop: "{{ vault_etcd_cert_roles | dict2items }}"
+
+
+  - name: "Setup certificate roles for ETCD"
+    ansible.builtin.include_role:
+      name: "vault/certificate_roles"
+    vars:
+      vault_role_name: "{{ item.key | replace('_','-') }}"
+      vault_ca_path: "{{ front_proxy_engine_path }}"
+      vault_cert_role_options: "{{ item.value }}"
+    loop: "{{ vault_front_proxy_cert_roles | dict2items }}"

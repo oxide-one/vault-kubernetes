@@ -1,0 +1,24 @@
+- name: "Fetch currently configured roles from vault"
+  uri:
+    url: "{{ vault_url }}/v1/{{ vault_ca_path }}/roles/{{ vault_role_name | replace('.','-') }}"
+    headers:
+      X-Vault-Request: true
+      X-Vault-Token: "{{ vault_token }}"
+    method: GET
+    status_code:
+      - 200
+      - 404
+  register: vault_roles
+
+- name: "Create a role authority at /{{ vault_ca_path }}/roles/{{ vault_role_name }}"
+  uri:
+    url: "{{ vault_url }}/v1/{{ vault_ca_path }}/roles/{{ vault_role_name }}"
+    headers:
+      X-Vault-Request: true
+      X-Vault-Token: "{{ vault_token }}"
+    method: POST
+    body: "{{ vault_cert_role_options | to_json }}"
+    body_format: json
+    status_code:
+      - 204
+      - 200

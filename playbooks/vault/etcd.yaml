@@ -1,0 +1,56 @@
+- name: "Setup hashicorp vault"
+  hosts: syndicate
+  connection: local
+  tasks:
+  - name: "Setup Certificate Authorities for ETCD"
+    ansible.builtin.include_role:
+      name: "vault/certificate_authority"
+    vars:
+      vault_ca_crl_url: "https://vault.oxide.one"
+      vault_ca_issuing_url: "https://vault.oxide.one"
+      component: "engine"
+      state: "present"
+      
+      vault_root_cacert_format: pem_bundle
+      vault_root_cacert_key_type: rsa
+      vault_root_cacert_organization: oxide.one
+      vault_root_cacert_permitted_dns_domains: "sou.oxide.one"
+      vault_root_cacert_private_key_format: der
+      vault_root_cacert_ttl: 87600h
+      vault_root_cacert_type: internal
+
+      vault_ca_description: "Basic stuff"
+      vault_root_cacert_common_name: etcd.gecko.oxide.one
+      vault_ca_path: "sou/etcd"
+
+  - name: "Setup certificates for ETCD"
+    ansible.builtin.include_role:
+      name: "vault/certificates"
+    vars:
+      component: "engine"
+      state: "present"
+      vault_ca_path: "sou/etcd"
+      vault_cert_name: "member"
+      vault_cert_allow_any_name: true
+      vault_cert_max_ttl: "720h"
+      vault_cert_ttl: "2d"
+
+  - name: "Import role"
+    ansible.builtin.import_role:
+      name: "vault/policies"
+    vars:
+      vault_policy_path: "sou/etcd/member"
+      vault_policy_policies:
+        - path: "sou/etcd/issue/member"
+          capabilities:
+            - "create"
+            - "update"
+            
+  - name: "Import role"
+    ansible.builtin.import_role:
+      name: "vault/role-token"
+    vars:
+      vault_token_allowed_policies: ["sou/etcd/member"]
+      vault_token_orphan: true
+      vault_token_period: "720h"
+      vault_token_role_name: "etcd"

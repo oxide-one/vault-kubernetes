@@ -1,0 +1,125 @@
+- name: "Setup Client Certificates"
+  hosts: syndicate
+  connection: local
+  vars:
+    vault_ca_path: "sou/kubernetes"
+    vault_cert_server_flag: false
+    vault_cert_client_flag: true
+    vault_cert_key_usage: []
+    vault_cert_allow_subdomains: false
+    vault_cert_allow_localhost: false
+    vault_cert_allow_ip_sans: false
+    vault_cert_allow_bare_domains: true
+    vault_cert_enforce_hostnames: false
+
+  tasks:
+  - name: "Setup certificates for the Front Proxy"
+    ansible.builtin.include_role:
+      name: "vault/configure_cert"
+    vars:
+      vault_ca_path: "sou/front-proxy"
+      vault_role_name: "client"
+      vault_cert_allowed_domains: "front-proxy-client"
+      #vault_cert_organization: ""
+
+  - name: "Setup certificates for Admin Users"
+    ansible.builtin.include_role:
+      name: "vault/configure_cert"
+    vars:
+      vault_role_name: "admin"
+      vault_cert_allowed_domains: "admin"
+      vault_cert_organization: "system:masters"
+
+  - name: "Setup certificates for the Kube Controller Manager"
+    ansible.builtin.include_role:
+      name: "vault/configure_cert"
+    vars:
+      vault_role_name: "system-kube-controller-manager"
+      vault_cert_allowed_domains: "system:kube-controller-manager"
+      vault_cert_organization: "system:kube-controller-manager"
+
+  - name: "Setup certificates for the Kube Proxy"
+    ansible.builtin.include_role:
+      name: "vault/configure_cert"
+    vars:
+      vault_role_name: "system-kube-proxy"
+      vault_cert_allowed_domains: "system:kube-proxy"
+      vault_cert_organization: "system:node-proxier"
+
+  - name: "Setup certificates for the Kube Scheduler"
+    ansible.builtin.include_role:
+      name: "vault/configure_cert"
+    vars:
+      vault_role_name: "system-kube-scheduler"
+      vault_cert_allowed_domains: "system:kube-scheduler"
+      vault_cert_organization: "system:kube-scheduler"
+
+  - name: "Setup certificates for Service Accounts"
+    ansible.builtin.include_role:
+      name: "vault/configure_cert"
+    vars:
+      vault_role_name: "service-accounts"
+      vault_cert_allowed_domains: "service-accounts"
+      vault_cert_organization: "Kubernetes"
+
+  - name: "Setup certificates for Kubelet Client"
+    ansible.builtin.include_role:
+      name: "vault/configure_cert"
+    vars:
+      vault_role_name: "system-node"
+      vault_cert_allowed_domains: "system:node:*"
+      vault_cert_organization: "system:nodes"
+      vault_cert_allow_localhost: true
+      vault_cert_allow_ip_sans: true
+      vault_cert_allow_bare_domains: false
+      vault_cert_enforce_hostnames: false
+      vault_cert_allow_glob_domains: true
+
+- name: "Setup Client Certificates"
+  hosts: syndicate
+  connection: local
+  vars:
+
+  tasks:
+  - name: "Setup certificates for Admin Users"
+    ansible.builtin.include_role:
+      name: "vault/configure_cert"
+    vars:
+      vault_ca_path: "sou/kubernetes"
+      vault_role_name: "apiserver"
+      vault_cert_organization: "Kubernetes"
+      vault_cert_allowed_domains:
+        - "sou.oxide.one"
+        - "cluster.local"
+        - "kubernetes"
+        - "kubernetes.default"
+        - "kubernetes.default.svc"
+        - "kubernetes.default.svc.cluster"
+        - "kubernetes.default.svc.cluster.local"
+
+      vault_cert_server_flag: true
+      vault_cert_client_flag: true
+      vault_cert_key_usage: []
+      vault_cert_allow_subdomains: true
+      vault_cert_allow_localhost: true
+      vault_cert_allow_ip_sans: true
+      vault_cert_allow_bare_domains: true
+      vault_cert_enforce_hostnames: true
+
+  - name: "Create a token Role: control_plane"
+    ansible.builtin.import_role:
+      name: "vault/role-token"
+    vars:
+      vault_token_allowed_policies: 
+      - "sou/etcd/member"
+      - "sou/kubernetes/admin"
+      - "sou/kubernetes/apiserver"
+      - "sou/kubernetes/service-accounts"
+      - "sou/kubernetes/system-kube-controller-manager"
+      - "sou/kubernetes/system-kube-proxy"
+      - "sou/kubernetes/system-kube-scheduler"
+      - "sou/kubernetes/system-node"
+      - "sou/front-proxy/client"
+      vault_token_orphan: true
+      vault_token_period: "720h"
+      vault_token_role_name: "control_plane"

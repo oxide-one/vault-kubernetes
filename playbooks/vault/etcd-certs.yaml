@@ -1,0 +1,61 @@
+- name: "Setup hashicorp vault"
+  hosts: syndicate
+  connection: local
+  vars:
+    vault_ca_path: "sou/etcd"
+  tasks:
+  - name: "Setup certificates for ETCD Servers"
+    ansible.builtin.include_role:
+      name: "vault/configure_cert"
+    vars:
+      
+      vault_role_name: "server"
+      vault_cert_organization: "etcd"
+      vault_cert_allowed_domains:
+        - "etcd.sou.oxide.one"
+        - "etcd-cluster"
+
+      vault_cert_server_flag: true
+      vault_cert_client_flag: false
+      vault_cert_key_usage: []
+      vault_cert_allow_subdomains: false
+      vault_cert_allow_localhost: true
+      vault_cert_allow_ip_sans: true
+      vault_cert_allow_bare_domains: true
+      vault_cert_enforce_hostnames: false
+
+  - name: "Setup certificates for ETCD Peers"
+    ansible.builtin.include_role:
+      name: "vault/configure_cert"
+    vars:
+      vault_role_name: "peer"
+      vault_cert_organization: "etcd"
+      vault_cert_allowed_domains:
+        - "sou.oxide.one"
+
+      vault_cert_server_flag: true
+      vault_cert_client_flag: true
+      vault_cert_key_usage: []
+      vault_cert_allow_subdomains: true
+      vault_cert_allow_localhost: true
+      vault_cert_allow_ip_sans: true
+      vault_cert_allow_bare_domains: false
+      vault_cert_enforce_hostnames: false
+
+  - name: "Setup certificates for ETCD Clients"
+    ansible.builtin.include_role:
+      name: "vault/configure_cert"
+    vars:
+      vault_role_name: "client"
+      vault_cert_organization: "etcd"
+      vault_cert_allowed_domains:
+        - "sou.oxide.one"
+
+      vault_cert_server_flag: false
+      vault_cert_client_flag: true
+      vault_cert_key_usage: []
+      vault_cert_allow_subdomains: true
+      vault_cert_allow_localhost: true
+      vault_cert_allow_ip_sans: true
+      vault_cert_allow_bare_domains: false
+      vault_cert_enforce_hostnames: false

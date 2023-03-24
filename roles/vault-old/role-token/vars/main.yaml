@@ -1,0 +1,17 @@
+
+
+vault_token_data:
+  allowed_policies: "{{ vault_token_allowed_policies }}" 
+  disallowed_policies: "{{ vault_token_disallowed_policies }}" 
+  allowed_policies_glob: "{{ vault_token_allowed_policies_glob }}" 
+  disallowed_policies_glob: "{{ vault_token_disallowed_policies_glob }}" 
+  orphan: "{{ vault_token_orphan }}" 
+  renewable: "{{ vault_token_renewable }}" 
+  path_suffix: "{{ vault_token_path_suffix }}" 
+  allowed_entity_aliases: "{{ vault_token_allowed_entity_aliases }}" 
+  token_bound_cidrs: "{{ vault_token_bound_cidrs }}" 
+  explicit_max_ttl: "{{ vault_token_explicit_max_ttl }}" 
+  token_no_default_policy: "{{ vault_token_no_default_policy }}" 
+  token_num_uses: "{{ vault_token_num_uses }}" 
+  token_period: "{{ vault_token_period }}" 
+  token_type: "{{ vault_token_type }}" 

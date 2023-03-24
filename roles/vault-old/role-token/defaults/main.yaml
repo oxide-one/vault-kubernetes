@@ -1,0 +1,18 @@
+state: "present"
+vault_token: "{{ lookup('ansible.builtin.env', 'HV_TOKEN') }}"
+
+vault_token_role_name: ""
+vault_token_allowed_policies: []
+vault_token_disallowed_policies: []
+vault_token_allowed_policies_glob: []
+vault_token_disallowed_policies_glob: []
+vault_token_orphan: false
+vault_token_renewable: true
+vault_token_path_suffix: ""
+vault_token_allowed_entity_aliases: []
+vault_token_bound_cidrs: []
+vault_token_explicit_max_ttl: 0
+vault_token_no_default_policy: false
+vault_token_num_uses: 0
+vault_token_period: 0
+vault_token_type: "service"

@@ -1,0 +1,11 @@
+vault_ca_mount_options:
+  type: pki
+  description: "{{ vault_ca_description }}"
+  config:
+    max-lease-ttl: "87600h"
+    default-lease-ttl: "87600h"
+
+
+vault_crl_config:
+  crl_distribution_points: "{{ vault_url }}/v1/{{ vault_ca_path }}/crl"
+  issuing_certificates: "{{ vault_url }}/v1/{{ vault_ca_path }}/ca"
