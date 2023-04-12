@@ -1,0 +1,14 @@
+- name: "01 - Setup the certificate authority"
+  ansible.builtin.import_playbook: certificate_authority.yaml
+
+- name: "02 - Setup the certificate roles"
+  ansible.builtin.import_playbook: certificate_roles.yaml
+
+- name: "03 - Setup the certificate policies"
+  ansible.builtin.import_playbook: certificate_policies.yaml
+
+- name: "01 - Setup the service_account"
+  ansible.builtin.import_playbook: service_account.yaml
+
+- name: "01 - Template out the consul-template file"
+  ansible.builtin.import_playbook: consul_template.yaml

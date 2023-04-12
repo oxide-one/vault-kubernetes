@@ -1,3 +1,7 @@
+- name: "Create new fact with the role name {{ vault_role_name }} into the allowed_domains list."
+  ansible.builtin.set_fact:
+    new_vault_cert_role_options: "{{ {'allowed_domains': ((vault_cert_role_options.allowed_domains | default([]) ) + [vault_role_name])} | combine(vault_cert_role_options, recursive=true, list_merge='append_rp') }}"
+
 - name: "Fetch currently configured roles from vault"
   uri:
     url: "{{ vault_url }}/v1/{{ vault_ca_path }}/roles/{{ vault_role_name | replace('.','-') }}"
@@ -10,14 +14,14 @@
       - 404
   register: vault_roles
 
-- name: "Create a role authority at /{{ vault_ca_path }}/roles/{{ vault_role_name }}"
+- name: "Create a role at /{{ vault_ca_path }}/roles/{{ vault_role_name }}"
   uri:
     url: "{{ vault_url }}/v1/{{ vault_ca_path }}/roles/{{ vault_role_name }}"
     headers:
       X-Vault-Request: true
       X-Vault-Token: "{{ vault_token }}"
     method: POST
-    body: "{{ vault_cert_role_options | to_json }}"
+    body: "{{ new_vault_cert_role_options | to_json }}"
     body_format: json
     status_code:
       - 204

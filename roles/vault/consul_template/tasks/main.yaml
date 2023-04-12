@@ -1,0 +1,4 @@
+- name: Template a file to /tmp/inventory
+  ansible.builtin.template:
+    src: consul-template.hcl
+    dest: /tmp/{{ inventory_hostname }}

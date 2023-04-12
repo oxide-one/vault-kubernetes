@@ -2,77 +2,48 @@
   hosts: localhost
   connection: local
   gather_facts: false
-  vars_files:
-  - vars.yaml
   tasks:
-  - name: "Setup Reader role for each engine"
+  - name: "Setup Certificate reader role for each engine"
     ansible.builtin.include_role:
       name: "vault/certificate_policy"
     vars:
-      vault_policy_path: "{{ item }}/read"
+      vault_engine_path: "{{ item.value.path }}"
+      vault_policy_path: "{{ vault_engine_path }}/read"
       vault_policy_policies:
-      - path: "{{ item }}/certs"
+      - path: "{{ vault_engine_path }}/certs"
         capabilities:
           - "list"
-      - path: "{{ item }}/cert/*"
+      - path: "{{ vault_engine_path }}/cert/*"
         capabilities:
           - "read"
-    loop:
-    - "{{ kubernetes_engine_path }}"
-    - "{{ etcd_engine_path }}"
-    - "{{ front_proxy_engine_path }}"
+    loop: "{{ vault_pki_engines | dict2items }}"
 
   - name: "Setup certificate policies for Kubernetes"
     ansible.builtin.include_role:
       name: "vault/certificate_policy"
     vars:
-      vault_policy_path: "{{ kubernetes_engine_path }}/{{ item.key | replace('_','-') }}"
+      vault_role_name:  "{{ item.value.role_name | default(item.key) }}"
+      vault_engine_path: "{{ vault_pki_engines[item.value.ca].path }}"
+      vault_policy_path: "{{ vault_engine_path }}/{{ vault_role_name }}"
       vault_policy_policies:
-      - path: "{{ kubernetes_engine_path }}/issue/{{ item.key | replace('_','-') }}"
+      - path: "{{ vault_engine_path }}/issue/{{ vault_role_name }}"
         capabilities:
              - "create"
              - "update"
-      # - path: "{{ kubernetes_engine_path }}/certs"
-      #   capabilities:
-      #     - "list"
-      # - path: "{{ kubernetes_engine_path }}/cert/*"
-      #   capabilities:
-      #     - "read"
-    loop: "{{ vault_kubernetes_cert_roles | dict2items }}"
+    loop: "{{ vault_certificates | dict2items }}"
 
-  - name: "Setup certificate policies for ETCD"
+  - name: "Setup certificate policies for KV Engines"
     ansible.builtin.include_role:
       name: "vault/certificate_policy"
     vars:
-      vault_policy_path: "{{ etcd_engine_path }}/{{ item.key | replace('_','-') }}"
+      vault_role_name:  "{{ item.key }}"
+      vault_engine_path: "{{ vault_kv_engines[item.value.engine].path }}"
+      vault_policy_path: "{{ vault_engine_path }}/{{ vault_role_name }}"
       vault_policy_policies:
-      - path: "{{ etcd_engine_path }}/issue/{{ item.key | replace('_','-') }}"
+      - path: "{{ vault_engine_path }}/data/{{ item.value.pubkey_path }}"
         capabilities:
-             - "create"
-             - "update"
-      # - path: "{{ etcd_engine_path }}/certs"
-      #   capabilities:
-      #     - "list"
-      # - path: "{{ etcd_engine_path }}/cert/*"
-      #   capabilities:
-      #     - "read"
-    loop: "{{ vault_etcd_cert_roles | dict2items }}"
-
-
-  - name: "Setup certificate policies for the Front Proxy"
-    ansible.builtin.include_role:
-      name: "vault/certificate_policy"
-    vars:
-      vault_policy_path: "{{ front_proxy_engine_path }}/{{ item.key | replace('_','-') }}"
-      vault_policy_policies:
-      - path: "{{ front_proxy_engine_path }}/issue/{{ item.key | replace('_','-') }}"
+             - "read"
+      - path: "{{ vault_engine_path }}/data/{{ item.value.privkey_path }}"
         capabilities:
-             - "create"
-             - "update"
-      # - path: "{{ front_proxy_engine_path }}/certs"
-      #   capabilities:
-      #     - "list"
-      # - path: "{{ front_proxy_engine_path }}/cert/*"
-      #   capabilities:
-      #     - "read"
-    loop: "{{ vault_front_proxy_cert_roles | dict2items }}"
+             - "read"
+    loop: "{{ vault_pubkey_pairs | dict2items }}"

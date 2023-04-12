@@ -1,0 +1,176 @@
+vault_token: "{{ lookup('ansible.builtin.env', 'VAULT_TOKEN', default=undef() ) }}"
+vault_url: "{{  lookup('ansible.builtin.env', 'VAULT_ADDR', default=undef() ) }}"
+
+# These will be added into the allowed_domains for the certificates that require DNS names
+# Namely, these are 
+# ETCD
+# - cn=kube-etcd
+# - cn=kube-etcd-peer
+# Kubernetes
+# - cn=kube-apiserver
+
+kubernetes_dns_endpoints: []
+
+etcd_dns_endpoints: []
+
+# The path which each engine will be mounted at
+# Kubernetes
+kubernetes_engine_path: "x509/kubernetes"
+# Etcd
+etcd_engine_path: "x509/etcd"
+# Front Proxy
+front_proxy_engine_path: "x509/front-proxy"
+# Service account (doesn't use x509, but we like consistency)
+serviceaccount_engine_path: "x509/serviceaccount"
+
+#### Utility variables ####
+# Probably wise not to change these
+kubernetes_dns_domains: 
+- "kubernetes"
+- "kubernetes.default"
+- "kubernetes.default.svc"
+- "kubernetes.default.svc.cluster.local" # Feel free to change cluster.local to something else if you want to.
+
+kubernetes_ip_endpoints:
+  # If your service subnet CIDR is 10.96.0.0/12, then the FIRST IP is often going to be the Kubernetes IP 
+  - "10.96.0.1"
+
+# Define a list of ALL possible DNS domains for etcd and kubernetes. Needed to define the allowed_domains field of vault roles
+all_etcd_domains: "{{ groups['etcd_servers']  + ['localhost'] + etcd_dns_endpoints }}"
+all_kubernetes_domains: "{{ groups['kubernetes_servers'] + ['localhost'], + kubernetes_dns_domains + kubernetes_dns_endpoints }}"
+
+# Define a list of Domains unique to each host.
+# Passed in for consul-template
+unique_kubernetes_domains: "{{ ['localhost'], + kubernetes_dns_domains + kubernetes_dns_endpoints }}"
+
+# Where to render the templates to
+# Default for Kubernetes
+template_base_dir: "/etc/kubernetes/pki"
+templates:
+  etcd:
+    type: "pki"
+    ca: "{{ etcd_engine_path }}" # The URL path to the etcd engine
+    ca_path: "{{ template_base_dir }}/etcd/ca.crt" # The Rendered path that the ETCD CA cert will be placed
+
+    # kube-etcd
+    kube-etcd:
+      path: "{{ template_base_dir }}/etcd/server"
+      ip_sans: "{{ [ansible_host,'127.0.0.1']  }}"
+      dns_sans: "{{ [inventory_hostname, 'localhost'] }}"
+    # kube-etcd-peer
+    kube-etcd-peer:
+      path: "{{ template_base_dir }}/etcd/peer"
+      ip_sans: "{{ [ansible_host,'127.0.0.1']  }}"
+      dns_sans: "{{ [inventory_hostname, 'localhost'] }}"
+    # kube-etcd-healthcheck-client
+    kube-etcd-healthcheck-client:
+      path: "{{ template_base_dir }}/etcd/healthcheck-client"
+    # kube-apiserver-etcd-client
+    kube-apiserver-etcd-client:
+      path: "{{ template_base_dir }}/apiserver-etcd-client"
+
+  kubernetes:
+    type: "pki"
+    ca: "{{ kubernetes_engine_path }}"
+    ca_path: "{{ template_base_dir }}/ca.crt"
+    # kube-apiserver
+    kube-apiserver:
+      path: "{{ template_base_dir }}/apiserver"
+      ip_sans: "{{ [ansible_host,'127.0.0.1'] + kubernetes_ip_endpoints  }}"
+      dns_sans: "{{ unique_kubernetes_domains }}"
+    # kube-apiserver-kubelet-client
+    kube-apiserver-kubelet-client:
+      path: "{{ template_base_dir }}/apiserver-kubelet-client"
+
+  front_proxy:
+    type: "pki"
+    ca: "{{ front_proxy_engine_path }}"
+    ca_path: "{{ template_base_dir }}/front-proxy-ca.crt"
+    # front-proxy-client
+    front-proxy-client:
+      path: "{{ template_base_dir }}/front-proxy-client"
+  
+  service_account:
+    type: "kv"
+    ca: "{{ serviceaccount_engine_path }}"
+    keys:
+    - role: "pubkey"
+      data: ".data.key"
+      path: "{{ template_base_dir }}/sa.pub"
+    - role: "privkey"
+      data: ".data.key"
+      path: "{{ template_base_dir }}/sa.key"
+
+# Unless you're really curious, you can leave the options below as default. 
+# They're fairly sane...
+#
+# ...fairly
+
+#### Certificate authority options ####
+vault_main_ca_options: &vault_main_ca_options
+  ttl: "87600h" #10 years
+  key_type: ed25519 #Smol certs
+
+vault_kubernetes_ca_options:
+  <<: *vault_main_ca_options
+  common_name: "kubernetes-ca"
+  alt_names: "kubernetes"
+
+vault_etcd_ca_options:
+  <<: *vault_main_ca_options
+  common_name: "etcd-ca"
+  alt_names: "etcd"
+
+vault_front_proxy_ca_options:
+  <<: *vault_main_ca_options
+  common_name: "kubernetes-front-proxy-ca"
+  alt_names: "front-proxy-ca"
+
+#### Certificate Role options ####
+vault_main_cert_role_options: &vault_main_cert_role_options
+  ttl: "130h" # 1 month 
+  server_flag: false
+  client_flag: false
+  key_type: ed25519
+  allow_bare_domains: true
+
+# ETCD Certificate Authority
+vault_etcd_cert_roles:
+  kube_etcd:
+    <<: *vault_main_cert_role_options
+    server_flag: true
+    client_flag: true
+    allowed_domains: "{{ vault_etcd_domains }}"
+    
+  kube_etcd_peer:
+    <<: *vault_main_cert_role_options
+    server_flag: true
+    client_flag: true
+    allowed_domains: "{{ vault_etcd_domains }}"
+
+  kube_etcd_healthcheck_client:
+    <<: *vault_main_cert_role_options
+    client_flag: true
+
+  kube_apiserver_etcd_client:
+    <<: *vault_main_cert_role_options
+    client_flag: true
+    organization: "system:masters"
+
+# Main Kubernetes Certificate Authority
+vault_kubernetes_cert_roles:
+  kube_apiserver:
+    <<: *vault_main_cert_role_options
+    server_flag: true
+    allowed_domains: "{{ vault_kubernetes_domains }}"
+
+  kube_apiserver_kubelet_client:
+    <<: *vault_main_cert_role_options
+    client_flag: true
+    organization: "system:masters"
+
+# The Front Proxy Certificate Authority
+vault_front_proxy_cert_roles:
+  front_proxy_client:
+    <<: *vault_main_cert_role_options
+    client_flag: true

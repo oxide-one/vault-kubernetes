@@ -1,27 +1,12 @@
-- name: "Setup hashicorp vault"
+- name: "Setup hashicorp vault Certificate Authorities"
   hosts: localhost
   connection: local
   gather_facts: false
-  vars_files:
-  - vars.yaml
   tasks:
-  - name: "Setup Certificate Authorities for Kubernetes"
+  - name: "Setup Certificate Authority"
     ansible.builtin.include_role:
       name: "vault/certificate_authority"
     vars:
-      vault_ca_path: "{{ kubernetes_engine_path }}"
-      vault_root_certificate_options: "{{ vault_kubernetes_ca_options }}"
-
-  - name: "Setup Certificate Authorities for ETCD"
-    ansible.builtin.include_role:
-      name: "vault/certificate_authority"
-    vars:
-      vault_ca_path: "{{ etcd_engine_path }}"
-      vault_root_certificate_options: "{{ vault_etcd_ca_options }}"
-
-  - name: "Setup Certificate Authorities for ETCD"
-    ansible.builtin.include_role:
-      name: "vault/certificate_authority"
-    vars:
-      vault_ca_path: "{{ front_proxy_engine_path }}"
-      vault_root_certificate_options: "{{ vault_front_proxy_ca_options }}"
+      vault_ca_path: "{{ item.value.path }}"
+      vault_root_certificate_options:  "{{ item.value.certificate }}"
+    loop: "{{ vault_pki_engines | dict2items }}"

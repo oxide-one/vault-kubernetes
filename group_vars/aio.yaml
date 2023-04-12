@@ -1,0 +1,18 @@
+issued_certificate_authorities:
+- kubernetes
+- etcd
+- front-proxy
+issued_certificates:
+- kube-etcd
+- kube-etcd-peer
+- kube-etcd-healthcheck-client
+- kube-apiserver-etcd-client
+- kube-controller-manager
+- kube-scheduler
+- kubelet
+- kube-apiserver
+- kube-apiserver-kubelet-client
+- front-proxy-client
+- kubernetes-admin
+issued_pubkey_pairs:
+- main

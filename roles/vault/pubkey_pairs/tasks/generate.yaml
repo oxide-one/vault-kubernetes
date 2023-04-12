@@ -1,0 +1,39 @@
+- name: Generate an Public/Private keypair for use in ServiceAccounts
+  community.crypto.openssl_privatekey_pipe:
+  register: pkey_pipe_output
+  no_log: true 
+
+- name: "Set a fact to set the Public and Private key"
+  ansible.builtin.set_fact:
+    pubkey: 
+      data:
+        key: "{{ pkey_pipe_output.diff.after.public_key }}"
+    privkey:
+      data:
+        key:  "{{ pkey_pipe_output.privatekey }}"
+
+- name: "Push the pubkey up to {{ vault_engine_path }}/data/{{ pubkey_path }}"
+  uri:
+    url: "{{ vault_url }}/v1/{{ vault_engine_path }}/data/{{ pubkey_path }}"
+    headers:
+      X-Vault-Request: true
+      X-Vault-Token: "{{ vault_token }}"
+    method: POST
+    body: "{{ pubkey | to_json }}"
+    body_format: json
+    status_code:
+      - 200
+  register: vault_root_cacert_data
+
+- name: "Push the private key up to {{ vault_engine_path }}/data/{{ privkey_path }}"
+  uri:
+    url: "{{ vault_url }}/v1/{{ vault_engine_path }}/data/{{ privkey_path }}"
+    headers:
+      X-Vault-Request: true
+      X-Vault-Token: "{{ vault_token }}"
+    method: POST
+    body: "{{ privkey | to_json }}"
+    body_format: json
+    status_code:
+      - 200
+  register: vault_root_cacert_data

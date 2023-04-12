@@ -1,0 +1,214 @@
+vault_token: "{{ lookup('ansible.builtin.env', 'VAULT_TOKEN', default=undef() ) }}"
+vault_url: "{{  lookup('ansible.builtin.env', 'VAULT_ADDR', default=undef() ) }}"
+
+
+# Where to render the templates to
+# Default for Kubernetes
+template_base_dir: "/etc/kubernetes/pki"
+
+kubernetes_dns_endpoints:
+- "kube-apiserver"
+- "localhost"
+- "kubernetes"
+- "kubernetes.default"
+- "kubernetes.default.svc"
+- "kubernetes.default.svc.cluster.local" # Feel free to change cluster.local to something else if you want to.
+
+kubernetes_ip_endpoints:
+  - "127.0.0.1"
+  # If your service subnet CIDR is 10.96.0.0/12, then the FIRST IP is often going to be the Kubernetes IP 
+  - "10.96.0.1"
+
+etcd_dns_endpoints:
+- "localhost"
+- "etcd"
+
+etcd_ip_endpoints:
+- "127.0.0.1"
+
+host_ip: "{{ ansible_host | default() }}"
+
+all_etcd_domains: "{{ ['etcd'] + groups['etcd_servers'] + etcd_dns_endpoints + groups['aio'] }}"
+all_kubernetes_domains: "{{ ['kube-apiserver'] + groups['kubernetes_servers'] + kubernetes_dns_endpoints + groups['aio'] }}"
+
+unique_kubernetes_domains: "{{ ['kube-apiserver'] + [inventory_hostname] + kubernetes_dns_endpoints }}"
+unique_kubernetes_ips: "{{ [host_ip] + kubernetes_ip_endpoints  }}"
+
+unique_etcd_domains: "{{ ['etcd'] + [inventory_hostname] + etcd_dns_endpoints }}"
+unique_etcd_ips: "{{ [host_ip] + etcd_ip_endpoints  }}"
+
+
+# Define the Certificate authorities that will be mounted
+vault_pki_engines:
+  kubernetes:
+    path: "x509/kubernetes"
+    save_path: "{{ template_base_dir }}/ca.crt"
+    certificate: 
+      # Mapped directly into the JSON under the path /pki/root/generate/:type
+      ttl: "87600h" #10 years
+      key_type: ed25519 #Smol certs
+      common_name: "kubernetes-ca"
+      alt_names: "kubernetes"
+
+  etcd:
+    path: "x509/etcd"
+    save_path: "{{ template_base_dir }}/etcd/ca.crt"
+    certificate: 
+      ttl: "87600h" #10 years
+      key_type: ed25519 #Smol certs
+      common_name: "etcd-ca"
+      alt_names: "etcd"
+
+  front-proxy:
+    path: "x509/front-proxy"
+    save_path: "{{ template_base_dir }}/front-proxy-ca.crt"
+    certificate: 
+      ttl: "87600h" #10 years
+      key_type: ed25519 #Smol certs
+      common_name: "kubernetes-front-proxy-ca"
+      alt_names: "front-proxy-ca"
+
+vault_kv_engines:
+  serviceaccount:
+    path: "x509/serviceaccount"
+
+vault_pubkey_pairs:
+  main:
+    engine: "serviceaccount"
+    pubkey_path: "pubkey"
+    privkey_path: "privkey"
+    save_path: "{{ template_base_dir }}/sa"
+
+  
+
+certificate_role_defaults: &certificate_role_defaults
+  ttl: "130h" # 1 month 
+  server_flag: false
+  client_flag: false
+  key_type: ed25519
+  allow_bare_domains: true
+  allow_wildcard_certificates: false
+  cn_validations:
+  - "hostname"
+
+vault_certificates:
+  kube-etcd:
+    ca: "etcd"
+    save_path: "{{ template_base_dir }}/etcd/server"
+    role_name: "server"
+    role:
+      <<: *certificate_role_defaults
+      server_flag: true
+      client_flag: true
+      allowed_domains: "{{ all_etcd_domains }}"
+    cert:
+      ip_sans: "{{ unique_etcd_ips }}"
+      alt_names: "{{ unique_etcd_domains }}"
+
+  kube-etcd-peer:
+    ca: "etcd"
+    role_name: "peer"
+    save_path: "{{ template_base_dir }}/etcd/peer"
+    role:
+      <<: *certificate_role_defaults
+      server_flag: true
+      client_flag: true
+      allowed_domains: "{{ all_etcd_domains }}"
+    cert:
+      ip_sans: "{{ unique_etcd_ips }}"
+      alt_names: "{{ unique_etcd_domains }}"
+
+  kube-etcd-healthcheck-client:
+    ca: "etcd"
+    role_name: "healthcheck-client"
+    save_path: "{{ template_base_dir }}/etcd/healthcheck-client"
+    role:
+      <<: *certificate_role_defaults
+      client_flag: true
+
+  kube-apiserver-etcd-client:
+    ca: "etcd"
+    role_name: "apiserver-etcd-client"
+    save_path: "{{ template_base_dir }}/apiserver-etcd-client"
+    role:
+      <<: *certificate_role_defaults
+      client_flag: true
+      organization: "system:masters"
+
+  kube-controller-manager: 
+    ca: "kubernetes"
+    role_name: "controller-manager"
+    save_path: "{{ template_base_dir }}/controller-manager"
+    common_name: "system:kube-controller-manager"
+    role:
+      <<: *certificate_role_defaults
+      client_flag: true
+      enforce_hostnames: false
+      allowed_domains: 
+      - "system:kube-controller-manager"
+
+  kube-scheduler:
+    ca: "kubernetes"
+    role_name: "scheduler"
+    save_path: "{{ template_base_dir }}/scheduler"
+    common_name: "system:kube-scheduler"
+    role:
+      <<: *certificate_role_defaults
+      client_flag: true
+      enforce_hostnames: false
+      allowed_domains:
+      - "system:kube-scheduler"
+  kube-apiserver:
+    ca: "kubernetes"
+    role_name: "apiserver"
+    save_path: "{{ template_base_dir }}/apiserver"
+    role:
+      <<: *certificate_role_defaults
+      server_flag: true
+      allowed_domains: "{{ all_kubernetes_domains }}"
+    cert:
+      ip_sans: "{{ unique_kubernetes_ips }}"
+      alt_names: "{{ unique_kubernetes_domains }}"
+
+  kubelet:
+    ca: "kubernetes"
+    role_name: "kubelet"
+    common_name: "system:node:{{ inventory_hostname }}"
+    save_path: "/var/lib/kubelet/pki/kubelet-client-current"
+    role:
+      <<: *certificate_role_defaults
+      client_flag: true
+      organization: "system:nodes"
+      allow_glob_domains: true
+      enforce_hostnames: false
+      allowed_domains:
+      - "system:node:*"
+
+  kube-apiserver-kubelet-client:
+    ca: "kubernetes"
+    role_name: "kubelet-client"
+    save_path: "{{ template_base_dir }}/apiserver-kubelet-client"
+    role:
+      <<: *certificate_role_defaults
+      client_flag: true
+      organization: "system:masters"
+
+  front-proxy-client:
+    ca: "front-proxy"
+    role_name: "client"
+    save_path: "{{ template_base_dir }}/front-proxy-client"
+    role:
+      <<: *certificate_role_defaults
+      client_flag: true
+
+  kubernetes-admin:
+    ca: "kubernetes"
+    role_name: "admin"
+    save_path: "{{ template_base_dir }}/admin"
+    common_name: kubernetes-admin
+    role:
+      <<: *certificate_role_defaults
+      client_flag: true
+      organization: "system:masters"
+      allowed_domains:
+      - "kubernetes-admin"

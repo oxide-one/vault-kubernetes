@@ -12,7 +12,7 @@
 
 - name: "Set a fact to display the mounts"
   ansible.builtin.set_fact:
-    vault_ca_present: "{{ (vault_ca_path + '/') in  vault_mounts.json }}"
+    vault_ca_present: "{{ (vault_ca_path + '/') in vault_mounts.json }}"
 
 - name: "Create a certificate authority at /{{ vault_ca_path }}"
   uri:
@@ -28,6 +28,17 @@
   when:
   - not vault_ca_present
 
+- name: "Check if the CA cert is present at {{ vault_url }}/{{ vault_ca_path }}/ca"
+  uri:
+    url: "{{ vault_url }}/v1/{{ vault_ca_path }}/ca"
+    headers:
+      X-Vault-Request: true
+      X-Vault-Token: "{{ vault_token }}"
+    method: GET
+    status_code:
+      - 200
+      - 204
+  register: vault_cas
 
 - name: "Generate a root certificate"
   uri:
@@ -41,6 +52,8 @@
     status_code:
       - 200
   register: vault_root_cacert_data
+  when:
+   - vault_cas.status == 204
 
 - name: "Configure the issuing urls and revokation URLs"
   uri:
@@ -55,3 +68,5 @@
       - 204
       - 200
   register: vault_ca_urlset
+  when:
+   - vault_cas.status == 204   

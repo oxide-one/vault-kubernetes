@@ -1,0 +1,25 @@
+- name: "Pull the Service account keys"
+  uri:
+    url: "{{ vault_url }}/v1/{{ vault_engine_path }}/metadata?list=true"
+    headers:
+      X-Vault-Request: true
+      X-Vault-Token: "{{ vault_token }}"
+    method: GET
+    status_code:
+      - 200
+      - 404
+  register: key_list
+
+- name: Set a fact to ensure that the next few roles don't fail
+  ansible.builtin.set_fact:
+    key_list:
+      json:
+        data:
+          keys: []
+  when: key_list.status == 404
+
+- name: Generate Key pair
+  ansible.builtin.import_tasks: "generate.yaml"
+  when:
+  - "pubkey_path not in key_list.json.data['keys']"
+  - "privkey_path not in key_list.json.data['keys']"

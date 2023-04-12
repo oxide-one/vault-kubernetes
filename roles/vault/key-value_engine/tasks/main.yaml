@@ -1,0 +1,29 @@
+# We don't want to be re-mounting
+- name: "Fetch currently configured mounts from vault"
+  uri:
+    url: "{{ vault_url }}/v1/sys/mounts"
+    headers:
+      X-Vault-Request: true
+      X-Vault-Token: "{{ vault_token }}"
+    method: GET
+    status_code:
+      - 200
+  register: vault_mounts
+
+- name: "Set a fact to display the mounts"
+  ansible.builtin.set_fact:
+    vault_engine_present: "{{ (vault_engine_path + '/') in  vault_mounts.json }}"
+
+- name: "Create a secret engine at /{{ vault_engine_path }}"
+  uri:
+    url: "{{ vault_url }}/v1/sys/mounts/{{ vault_engine_path }}"
+    headers:
+      X-Vault-Request: true
+      X-Vault-Token: "{{ vault_token }}"
+    method: POST
+    body: "{{ vault_engine_mount_options | to_json }}"
+    body_format: json
+    status_code:
+      - 204
+  when:
+  - not vault_engine_present # Don't recreate the engine
