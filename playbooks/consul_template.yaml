@@ -1,10 +1,24 @@
 - name: "Setup hashicorp vault"
-  hosts: aio
-  connection: local
+  hosts: all
   gather_facts: false
   tasks:
-  - debug:
-      msg: "{{ inventory_hostname }}"
   - name: "Setup certificate roles for Kubernetes"
     ansible.builtin.include_role:
       name: "vault/consul_template"
+      apply:
+        become: true
+    when: 
+    - vault_consul_destination is defined
+
+- name: "Setup hashicorp vault locally"
+  hosts: all
+  gather_facts: false
+  connection: local
+  tasks:
+  - name: "Setup certificate roles for Kubernetes"
+    ansible.builtin.include_role:
+      name: "vault/consul_template"
+    vars:
+      vault_consul_destination: "/tmp/{{ inventory_hostname }}"
+    when: 
+    - vault_consul_destination is not defined

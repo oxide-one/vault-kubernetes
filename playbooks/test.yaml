@@ -1,0 +1,8 @@
+- name: "Setup hashicorp vault"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+  - name: "Setup Key value engines"
+    debug:
+      msg: "{{ all_etcd_domains }}"

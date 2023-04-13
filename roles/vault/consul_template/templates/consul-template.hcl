@@ -26,7 +26,7 @@ template = {
 {%- set cert = vault_certificates[issued_certificate] -%}
 {%- set ca = vault_pki_engines[cert.ca] -%}
 {%- set secret = ('with secret \\\"%s/issue/%s\\\"' | format(ca.path,cert.role_name)) -%}
-{%- set options = ["\\\"exclude_cn_from_sans=true\\\"","\\\"common_name=" + (cert.common_name | default(cert.role_name)) + "\\\""] -%}
+{%- set options = ["\\\"exclude_cn_from_sans=true\\\"", "\\\"common_name=" + (cert.cert | default({})).pop('common_name', cert.role_name) + "\\\"" ] -%}
 {%- if 'cert' in cert -%}
 {%- for cert_option_key, cert_option_value in cert.cert.items() -%}{{ options.append("\\\"%s=%s\\\"" | format(cert_option_key, (cert_option_value | join(',')))) }}{% endfor %}
 {%- endif -%}

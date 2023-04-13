@@ -6,6 +6,8 @@ vault_url: "{{  lookup('ansible.builtin.env', 'VAULT_ADDR', default=undef() ) }}
 # Default for Kubernetes
 template_base_dir: "/etc/kubernetes/pki"
 
+# Possible DNS endpoints for Kubernetes
+# Passed into allowed_domains for the relevant roles
 kubernetes_dns_endpoints:
 - "kube-apiserver"
 - "localhost"
@@ -14,27 +16,33 @@ kubernetes_dns_endpoints:
 - "kubernetes.default.svc"
 - "kubernetes.default.svc.cluster.local" # Feel free to change cluster.local to something else if you want to.
 
+# Possible IP endpoints for Kubernetes
+# This will be put into the ip_sans of the cert, so you may want to put a shared master IP in here if you wish.
 kubernetes_ip_endpoints:
-  - "127.0.0.1"
-  # If your service subnet CIDR is 10.96.0.0/12, then the FIRST IP is often going to be the Kubernetes IP 
-  - "10.96.0.1"
+- "127.0.0.1"
 
+# Possible DNS names for ETCD
 etcd_dns_endpoints:
 - "localhost"
 - "etcd"
 
+# Possible IP endpoints for ETCD
 etcd_ip_endpoints:
 - "127.0.0.1"
 
 host_ip: "{{ ansible_host | default() }}"
 
-all_etcd_domains: "{{ ['etcd'] + groups['etcd_servers'] + etcd_dns_endpoints + groups['aio'] }}"
-all_kubernetes_domains: "{{ ['kube-apiserver'] + groups['kubernetes_servers'] + kubernetes_dns_endpoints + groups['aio'] }}"
+# All possible Domains for ETCD
+# Passed into allowed_domains for ETCD roles
+all_etcd_domains: "{{ groups['etcd_servers'] + etcd_dns_endpoints + groups['aio'] }}"
 
-unique_kubernetes_domains: "{{ ['kube-apiserver'] + [inventory_hostname] + kubernetes_dns_endpoints }}"
+# All possible Domains for Kubernetes
+all_kubernetes_domains: "{{ groups['kubernetes_servers'] + kubernetes_dns_endpoints + groups['aio'] }}"
+
+unique_kubernetes_domains: "{{ [inventory_hostname] + kubernetes_dns_endpoints }}"
 unique_kubernetes_ips: "{{ [host_ip] + kubernetes_ip_endpoints  }}"
 
-unique_etcd_domains: "{{ ['etcd'] + [inventory_hostname] + etcd_dns_endpoints }}"
+unique_etcd_domains: "{{  [inventory_hostname] + etcd_dns_endpoints }}"
 unique_etcd_ips: "{{ [host_ip] + etcd_ip_endpoints  }}"
 
 
@@ -68,10 +76,13 @@ vault_pki_engines:
       common_name: "kubernetes-front-proxy-ca"
       alt_names: "front-proxy-ca"
 
+# Specify some Key value engines to create
+# This is used because ServiceAccounts don't really use a CA
 vault_kv_engines:
   serviceaccount:
     path: "x509/serviceaccount"
 
+# Map in some Pubkey pairs for the serviceaccount
 vault_pubkey_pairs:
   main:
     engine: "serviceaccount"
@@ -80,7 +91,8 @@ vault_pubkey_pairs:
     save_path: "{{ template_base_dir }}/sa"
 
   
-
+# Specify some sane defaults for certificates
+# This gets mapped in with a YAML anchor
 certificate_role_defaults: &certificate_role_defaults
   ttl: "130h" # 1 month 
   server_flag: false
@@ -139,25 +151,28 @@ vault_certificates:
     ca: "kubernetes"
     role_name: "controller-manager"
     save_path: "{{ template_base_dir }}/controller-manager"
-    common_name: "system:kube-controller-manager"
     role:
       <<: *certificate_role_defaults
       client_flag: true
       enforce_hostnames: false
       allowed_domains: 
       - "system:kube-controller-manager"
+    cert:
+      common_name: "system:kube-controller-manager"
 
   kube-scheduler:
     ca: "kubernetes"
     role_name: "scheduler"
     save_path: "{{ template_base_dir }}/scheduler"
-    common_name: "system:kube-scheduler"
     role:
       <<: *certificate_role_defaults
       client_flag: true
       enforce_hostnames: false
       allowed_domains:
       - "system:kube-scheduler"
+    cert:
+      common_name: "system:kube-scheduler"
+
   kube-apiserver:
     ca: "kubernetes"
     role_name: "apiserver"
@@ -173,7 +188,6 @@ vault_certificates:
   kubelet:
     ca: "kubernetes"
     role_name: "kubelet"
-    common_name: "system:node:{{ inventory_hostname }}"
     save_path: "/var/lib/kubelet/pki/kubelet-client-current"
     role:
       <<: *certificate_role_defaults
@@ -183,6 +197,8 @@ vault_certificates:
       enforce_hostnames: false
       allowed_domains:
       - "system:node:*"
+    cert:
+      common_name: "system:node:{{ inventory_hostname }}"
 
   kube-apiserver-kubelet-client:
     ca: "kubernetes"
@@ -205,10 +221,11 @@ vault_certificates:
     ca: "kubernetes"
     role_name: "admin"
     save_path: "{{ template_base_dir }}/admin"
-    common_name: kubernetes-admin
     role:
       <<: *certificate_role_defaults
       client_flag: true
       organization: "system:masters"
       allowed_domains:
       - "kubernetes-admin"
+    cert:
+      common_name: kubernetes-admin

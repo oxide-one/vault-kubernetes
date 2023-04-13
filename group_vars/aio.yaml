@@ -13,6 +13,6 @@ issued_certificates:
 - kube-apiserver
 - kube-apiserver-kubelet-client
 - front-proxy-client
-- kubernetes-admin
+#- kubernetes-admin
 issued_pubkey_pairs:
 - main

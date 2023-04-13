@@ -1,2 +1,4 @@
 # Just in case I'm hyper stupid :)
 creds.env
+# Ignore the inventory
+inventory.ini
